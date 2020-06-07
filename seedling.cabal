@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 346cd2e021f53f67e48350c29548d1536babc55cc560f543ef0229b4b9afea10
+-- hash: 52b9bec87ef7cf3b49940a68dc77f201655f33925fd8860780472ef8a50cc45b
 
 name:           seedling
 version:        0.1.0.0
@@ -36,6 +36,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , containers
     , cryptonite
     , random
   default-language: Haskell2010
@@ -49,6 +50,7 @@ executable seedling-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , cryptonite
     , random
     , seedling
@@ -64,6 +66,7 @@ test-suite seedling-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , containers
     , cryptonite
     , random
     , seedling

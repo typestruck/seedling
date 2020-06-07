@@ -1,6 +1,3 @@
-module Lib (module D) where
+module Lib (module Database) where
 
-import qualified Database as D
-
-
-
+import Database
