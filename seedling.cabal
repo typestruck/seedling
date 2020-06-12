@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 52b9bec87ef7cf3b49940a68dc77f201655f33925fd8860780472ef8a50cc45b
+-- hash: 43d7e5fac9fb751458bf7d40639442bda0d7d14a4888c53e773b20daafcd5c55
 
 name:           seedling
 version:        0.1.0.0
@@ -27,6 +27,7 @@ source-repository head
 
 library
   exposed-modules:
+      Classifier
       Database
       Lib
       Network
@@ -38,6 +39,8 @@ library
       base >=4.7 && <5
     , containers
     , cryptonite
+    , graphite
+    , normaldistribution
     , random
   default-language: Haskell2010
 
@@ -52,6 +55,8 @@ executable seedling-exe
       base >=4.7 && <5
     , containers
     , cryptonite
+    , graphite
+    , normaldistribution
     , random
     , seedling
   default-language: Haskell2010
@@ -68,6 +73,8 @@ test-suite seedling-test
       base >=4.7 && <5
     , containers
     , cryptonite
+    , graphite
+    , normaldistribution
     , random
     , seedling
   default-language: Haskell2010

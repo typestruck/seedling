@@ -24,6 +24,8 @@ dependencies:
 - cryptonite
 - random
 - containers
+- graphite
+- normaldistribution
 
 library:
   source-dirs: src

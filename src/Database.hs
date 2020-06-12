@@ -1,4 +1,4 @@
-{-# LANGUAGE DuplicateRecordFields, LambdaCase #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 
 module Database
         ( User(..)
@@ -16,6 +16,7 @@ import qualified Data.Map                      as DM
 import           Data.Map                       ( (!) )
 import qualified Data.List                     as DL
 import qualified Debug.Trace                   as DT
+import qualified Data.Random.Normal as DRN
 
 data KarmaStatus = Low | Medium | High deriving (Show, Eq, Ord)
 
@@ -33,7 +34,8 @@ data User = User {
 data Chat = Chat {
         firstUserName :: String,
         secondUserName :: String,
-        karma :: Int
+        karma :: Int,
+        blocked :: Bool
 } deriving Show
 
 data OnlineStatus = OnlineStatus {
@@ -57,19 +59,26 @@ createChats total users = do
         let size = length users - 1
         numbers <- takeRandom (0, size) total
         let     usersMap = DM.fromList $ zip [0 .. size] users
-                indexes  = DL.nubBy sameChat . zip numbers $ reverse numbers
+                indexes =
+                        filter sameUser
+                                . DL.nubBy sameChat
+                                . zip numbers
+                                $ reverse numbers
         mapM (makeChat usersMap) indexes
     where
         sameChat (u, u2) (t, t2) = u == t && u2 == t2 || u == t2 && u2 == t
+        sameUser (u, u2) = u /= u2
 
         makeChat usersMap (i, i2) = do
                 let     firstUser  = usersMap ! i
                         secondUser = usersMap ! i2
-                karma <- karmaByStatus
+                blocked <- (< 15) <$> SR.randomRIO (1, 100 :: Int)
+                karma   <- karmaByStatus
                         $ min (karmaStatus firstUser) (karmaStatus secondUser)
                 pure Chat { firstUserName  = name firstUser
                           , secondUserName = name secondUser
-                          , karma          = div karma 10
+                          , karma          = if blocked then 0 else div karma 10
+                          , blocked        = blocked
                           }
 
 createUsers :: Int -> IO [User]
@@ -149,11 +158,15 @@ makeKarma status user = do
         karma <- karmaByStatus status
         pure user { totalKarma = karma, karmaStatus = status }
 
+--we need it to be a normal distrubituion for the naive bayes
 karmaByStatus :: KarmaStatus -> IO Int
-karmaByStatus = SR.randomRIO . \case
-        Low    -> (lowKarma, mediumKarma)
-        Medium -> (mediumKarma, highKarma)
-        High   -> (highKarma, topKarma)
+karmaByStatus status = do
+        float <- DRN.normalIO :: IO Float
+        let (max, min) = case status of
+                Low    ->  (lowKarma, mediumKarma)
+                Medium -> (mediumKarma, highKarma)
+                High   -> (highKarma, topKarma)
+        pure $ floor (float * (fromIntegral max - fromIntegral min + 1.0)) + min
 
 makeUsers :: String -> Int -> IO [User]
 makeUsers tag total = mapM make [1 .. total]
