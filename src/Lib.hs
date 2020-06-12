@@ -14,11 +14,6 @@ import qualified Data.Graph.Types              as DGT
 import           Data.Graph.UGraph              ( UGraph(..) )
 import           Data.Monoid                    ( Sum(..) )
 
-
-createSuggestions :: [User] -> UGraph String Double -> String -> IO [String]
+createSuggestions :: Double -> [Summary] -> String -> IO [String]
 createSuggestions users network for = do
-        let newUsers = []
-        putStrLn for
-        putStrLn "\n"
-        print $ DGU.incidentEdges network for
-        pure [""]
+     pure [""]

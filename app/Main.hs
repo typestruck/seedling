@@ -2,7 +2,7 @@
 
 module Main where
 
-import Control.Monad(void)
+import           Control.Monad                  ( void )
 
 import qualified Lib                           as L
 
@@ -14,6 +14,7 @@ main = do
         display users
         display chats
         print network
-        void $ L.createSuggestions users network $ L.name (users !! 0)
-
-        where display = putStrLn . concatMap ( ( ++ "\n\n") . show)
+        let features = L.featurize network users
+        print features
+        --void $ L.createSuggestions users features network $ L.name (users !! 0)
+        where display = putStrLn . concatMap ((++ "\n\n") . show)
