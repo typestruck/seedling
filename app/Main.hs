@@ -14,7 +14,21 @@ main = do
         display users
         display chats
         print network
+        putStrLn "\n"
         let features = L.featurize network users
         print features
-        --void $ L.createSuggestions users features network $ L.name (users !! 0)
+        putStrLn "\n"
+        let
+                summary = L.summarize
+                        (fromIntegral . length $ head features)
+                        features
+        print summary
+        putStrLn "\n"
+        suggestions <-
+                L.createSuggestions
+                        (fromIntegral . length $ head features)
+                        summary
+                . L.name
+                $ head users
+        print suggestions
         where display = putStrLn . concatMap ((++ "\n\n") . show)

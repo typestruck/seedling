@@ -11,21 +11,27 @@ import qualified Data.Map                      as DM
 import           Database                       ( User(..)
                                                 , Chat(..)
                                                 )
+import qualified Data.List                     as DL
 import           Data.Map                       ( (!)
                                                 , Map
                                                 )
+import           Data.Maybe                    as DMY
+
+data Summary = Summary { feature :: Feature, mean :: Double, standardDeviation :: Double } deriving Show
+
+data Classification = Bad | Neutral | Good deriving (Show, Eq, Ord,Enum)
 
 data Feature =  UserPositiveEdges |
                 ComparedUserPositiveEdges |
                 UserNegativeEdges |
                 ComparedUserNegativeEdges |
-                -- CommonNeighbors | -- this should be category data too, like no in common, few in common, many etc
-                UserTotalDegre |
+                CommonNeighbors | -- maybe this should be category data too, like no in common, few in common, many etc
+                UserTotalDegree |
                 ComparedUserTotalDegree |
                 -- UserPageRank Int | -- this is category data!
                 -- ComparedUserPageRank Int -- this is category data!
                 UserAge |
-                -- AgeDifference |
+                AgeDifference |
                 UserAccountAge |
                 ComparedUserAccountAge |
                 UserKarma
@@ -33,36 +39,95 @@ data Feature =  UserPositiveEdges |
                 -- CosineSimilarityTags Double -- this is binary data!
                 deriving (Eq, Ord, Show, Enum)
 
-data Summary = Summary { feature :: Feature, mean :: Double, standardDeviation :: Double } deriving Show
-
-featurize :: UGraph String Double -> [User] -> [[(Feature, Double)]]
-featurize network users = DM.elems
-        $ foldl build DM.empty users
+featurize
+        :: UGraph String Double
+        -> [Chat]
+        -> [User]
+        -> [[(Feature, Double, Classification)]]
+featurize network chats users = DM.elems $ foldl build DM.empty users
     where
-        build featureMap user =
-                let userName      = name user
-                    edges         = DGU.incidentEdges network userName
-                    edgeCount     = length edges
-                    positiveEdges = length $ filter isPositiveEdge edges
-                in  foldl
-                            (\fm fd@(f, d) -> DM.insertWith (\_ old -> fd : old) f [fd] fm)
-                            featureMap
-                            [ (UserPositiveEdges, fromIntegral positiveEdges)
-                            , ( UserNegativeEdges
-                              , fromIntegral $ edgeCount - positiveEdges
-                              )
-                            , (UserTotalDegre, fromIntegral edgeCount)
-                            , (UserAge       , fromIntegral $ age user)
-                            , (UserAccountAge, fromIntegral $ accountAge user)
-                            , (UserKarma     , fromIntegral $ totalKarma user)
-                            ]
+        build featureMap Chat {..} =
+                let
+                        (user, comparedUser) =
+                                ( usersMap ! secondUserName
+                                , usersMap ! secondUserName
+                                )
+                        (userEdges, comparedUserEdges) =
+                                ( DGU.incidentEdges network $ name user
+                                , DGU.incidentEdges network $ name comparedUser
+                                )
+                        (userEdgeCount, comparedUserEdgeCount) =
+                                (length userEdges, length comparedUserEdges)
+                        (userPositiveEdges, comparedUserPositiveEdges) =
+                                ( length $ filter isPositiveEdge userEdges
+                                , length $ filter isPositiveEdge
+                                                  comparedUserEdges
+                                )
+                        classification = classify . DMY.fromJust $ DL.find
+                                (\(Edge _ b v) -> b == name comparedUser)
+                                userEdges
+                in
+                        foldl
+                                (\fm fd@(f, d) -> DM.insertWith
+                                        (\_ old -> fd : old)
+                                        f
+                                        [fd]
+                                        fm
+                                )
+                                featureMap
+                                [ ( UserPositiveEdges
+                                  , fromIntegral userPositiveEdges
+                                  )
+                                , ( ComparedUserPositiveEdges
+                                  , fromIntegral comparedUserPositiveEdges
+                                  )
+                                , ( UserNegativeEdges
+                                  , fromIntegral
+                                  $ userEdgeCount
+                                  - userPositiveEdges
+                                  )
+                                , ( ComparedUserNegativeEdges
+                                  , fromIntegral
+                                  $ comparedUserEdgeCount
+                                  - comparedUserPositiveEdges
+                                  )
+                                , (UserTotalDegree, fromIntegral userEdgeCount)
+                                , ( ComparedUserTotalDegree
+                                  , fromIntegral comparedUserEdgeCount
+                                  )
+                                , (UserAge, fromIntegral $ age user)
+                                , ( AgeDifference
+                                  , fromIntegral
+                                  . abs
+                                  $ age comparedUser
+                                  - age comparedUser
+                                  )
+                                , ( CommonNeighbors
+                                  , length $ DL.intersect
+                                          userEdges
+                                          comparedUserEdges
+                                  )
+                                , ( UserAccountAge
+                                  , fromIntegral $ accountAge user
+                                  )
+                                , ( ComparedUserAccountAge
+                                  , fromIntegral $ accountAge comparedUser
+                                  )
+                                , (UserKarma, fromIntegral $ totalKarma user)
+                                ]
 
-        isPositiveEdge (Edge _ _ v) = v > -1
+        usersMap       = DM.fromList $ zipWith (\u t -> (name u, t)) users users
 
-        usersMap = DM.fromList $ zipWith (\u t -> (name u, t)) users users
+        isPositiveEdge = (== Good) . classify
 
-summarize :: Double -> [[(Feature, Double)]] -> [Summary]
-summarize count = fmap summit
+        classify (Edge _ _ v) | v >= 0.5  = Good
+                              | v < 0.5   = Neutral
+                              | otherwise = Bad
+
+--adapt to using classes
+
+summarize :: Double -> [[(Feature, Double, Classification)]] -> [(Classification, [Summary])]
+summarize count allFeatures = [(classification, fmap summit $ filter (\(f,d,c) -> c == classification) allFeatures) | classification <- [minBound..] ]
     where
         summit features =
                 let values = fmap snd features
@@ -75,6 +140,8 @@ summarize count = fmap summit
                                     $ sum [ (v - mean) ** 2.0 | v <- values ]
                                     / (count - 1)
                             }
+
+--adapt to using classes
 
 score :: Double -> [Summary] -> [(Feature, Double)] -> Double
 score count summaries features = foldl calculate 1.0 summaries

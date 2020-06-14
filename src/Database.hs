@@ -162,7 +162,7 @@ makeKarma status user = do
 karmaByStatus :: KarmaStatus -> IO Int
 karmaByStatus status = do
         float <- DRN.normalIO :: IO Float
-        let (max, min) = case status of
+        let (min, max) = case status of
                 Low    ->  (lowKarma, mediumKarma)
                 Medium -> (mediumKarma, highKarma)
                 High   -> (highKarma, topKarma)
