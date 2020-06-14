@@ -19,7 +19,7 @@ import           Data.Maybe                    as DMY
 
 data Summary = Summary { feature :: Feature, mean :: Double, standardDeviation :: Double } deriving Show
 
-data Classification = Bad | Neutral | Good deriving (Show, Eq, Ord,Enum)
+data Classification = Bad | Neutral | Good deriving (Show, Eq, Ord,Enum, Bounded)
 
 data Feature =  UserPositiveEdges |
                 ComparedUserPositiveEdges |
@@ -44,7 +44,7 @@ featurize
         -> [Chat]
         -> [User]
         -> [[(Feature, Double, Classification)]]
-featurize network chats users = DM.elems $ foldl build DM.empty users
+featurize network chats users = DM.elems $ foldl build DM.empty chats
     where
         build featureMap Chat {..} =
                 let
@@ -68,53 +68,68 @@ featurize network chats users = DM.elems $ foldl build DM.empty users
                                 userEdges
                 in
                         foldl
-                                (\fm fd@(f, d) -> DM.insertWith
-                                        (\_ old -> fd : old)
-                                        f
-                                        [fd]
-                                        fm
-                                )
+                                insertFeature
                                 featureMap
                                 [ ( UserPositiveEdges
                                   , fromIntegral userPositiveEdges
+                                  , classification
                                   )
                                 , ( ComparedUserPositiveEdges
                                   , fromIntegral comparedUserPositiveEdges
+                                  , classification
                                   )
                                 , ( UserNegativeEdges
                                   , fromIntegral
                                   $ userEdgeCount
                                   - userPositiveEdges
+                                  , classification
                                   )
                                 , ( ComparedUserNegativeEdges
                                   , fromIntegral
                                   $ comparedUserEdgeCount
                                   - comparedUserPositiveEdges
+                                  , classification
                                   )
-                                , (UserTotalDegree, fromIntegral userEdgeCount)
+                                , ( UserTotalDegree
+                                  , fromIntegral userEdgeCount
+                                  , classification
+                                  )
                                 , ( ComparedUserTotalDegree
                                   , fromIntegral comparedUserEdgeCount
+                                  , classification
                                   )
-                                , (UserAge, fromIntegral $ age user)
+                                , ( UserAge
+                                  , fromIntegral $ age user
+                                  , classification
+                                  )
                                 , ( AgeDifference
                                   , fromIntegral
                                   . abs
                                   $ age comparedUser
                                   - age comparedUser
+                                  , classification
                                   )
                                 , ( CommonNeighbors
-                                  , length $ DL.intersect
+                                  , fromIntegral . length $ DL.intersect
                                           userEdges
                                           comparedUserEdges
+                                  , classification
                                   )
                                 , ( UserAccountAge
                                   , fromIntegral $ accountAge user
+                                  , classification
                                   )
                                 , ( ComparedUserAccountAge
                                   , fromIntegral $ accountAge comparedUser
+                                  , classification
                                   )
-                                , (UserKarma, fromIntegral $ totalKarma user)
+                                , ( UserKarma
+                                  , fromIntegral $ totalKarma user
+                                  , classification
+                                  )
                                 ]
+        insertFeature featureMap fdc@(feature, _, _) =
+                DM.insertWith (\_ old -> fdc : old) feature [fdc] featureMap
 
         usersMap       = DM.fromList $ zipWith (\u t -> (name u, t)) users users
 
@@ -124,16 +139,24 @@ featurize network chats users = DM.elems $ foldl build DM.empty users
                               | v < 0.5   = Neutral
                               | otherwise = Bad
 
---adapt to using classes
-
-summarize :: Double -> [[(Feature, Double, Classification)]] -> [(Classification, [Summary])]
-summarize count allFeatures = [(classification, fmap summit $ filter (\(f,d,c) -> c == classification) allFeatures) | classification <- [minBound..] ]
+summarize :: [[(Feature, Double, Classification)]]        -> [(Classification, Double, [Summary])]
+summarize allFeatures =
+        [ (classification, fromIntegral . length $ head filtered, fmap summit filtered)
+        | classification <- [minBound ..],
+          let filtered = filterClass classification allFeatures
+        ]
     where
+        filterClass classification =
+                fmap (fmap extract . filter (sameClass classification))
+        extract (feature, weight, _) = (feature, weight)
+        sameClass classification (_, _, c) = c == classification
         summit features =
-                let values = fmap snd features
+                let count = fromIntegral $ length features
+                    values = fmap snd features
                     mean   = sum values / count
                 in  Summary
-                            { feature           = fst $ head features
+                            {
+                              feature           = fst $ head features
                             , mean              = mean
                             , standardDeviation =
                                     sqrt
@@ -143,9 +166,11 @@ summarize count allFeatures = [(classification, fmap summit $ filter (\(f,d,c) -
 
 --adapt to using classes
 
-score :: Double -> [Summary] -> [(Feature, Double)] -> Double
-score count summaries features = foldl calculate 1.0 summaries
+score :: Double -> [(Classification, Double, [Summary])] -> [(Feature, Double)] -> [(Classification, Double)]
+score totalCount summaries features = fmap foldScore summaries
     where
+        foldScore (classification, count, summaries) = (classification, foldl calculate (count / totalCount) summaries)
+
         featureMap = DM.fromList features
 
         calculate total Summary {..} = total * calculateProbability

@@ -17,5 +17,5 @@ import           Data.Monoid                    ( Sum(..) )
 
 createSuggestions :: Double -> [Summary] -> String -> IO [String]
 createSuggestions count summary for = do
-        C.score count summary [(Feature, Double)]
+
         pure [""]
