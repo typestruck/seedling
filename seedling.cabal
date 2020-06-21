@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 43d7e5fac9fb751458bf7d40639442bda0d7d14a4888c53e773b20daafcd5c55
+-- hash: 741bf48df3c6d6e8f84b1f0de81720a0d143322d1ddd031907b870b8a411b996
 
 name:           seedling
 version:        0.1.0.0
@@ -35,13 +35,17 @@ library
       Paths_seedling
   hs-source-dirs:
       src
+  ghc-options: -fwarn-incomplete-patterns
   build-depends:
       base >=4.7 && <5
-    , containers
     , cryptonite
     , graphite
+    , hashable
     , normaldistribution
     , random
+    , statistics
+    , unordered-containers
+    , vector
   default-language: Haskell2010
 
 executable seedling-exe
@@ -50,15 +54,18 @@ executable seedling-exe
       Paths_seedling
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -fwarn-incomplete-patterns
   build-depends:
       base >=4.7 && <5
-    , containers
     , cryptonite
     , graphite
+    , hashable
     , normaldistribution
     , random
     , seedling
+    , statistics
+    , unordered-containers
+    , vector
   default-language: Haskell2010
 
 test-suite seedling-test
@@ -71,10 +78,13 @@ test-suite seedling-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
-    , containers
     , cryptonite
     , graphite
+    , hashable
     , normaldistribution
     , random
     , seedling
+    , statistics
+    , unordered-containers
+    , vector
   default-language: Haskell2010

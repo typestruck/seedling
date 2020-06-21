@@ -22,13 +22,19 @@ description:         Please see the README on GitHub at <https://github.com/gith
 dependencies:
 - base >= 4.7 && < 5
 - cryptonite
+- hashable
 - random
-- containers
+- unordered-containers
 - graphite
+- statistics
+- vector
+- vector
 - normaldistribution
 
 library:
   source-dirs: src
+  ghc-options:
+  - -fwarn-incomplete-patterns
 
 executables:
   seedling-exe:
@@ -38,6 +44,7 @@ executables:
     - -threaded
     - -rtsopts
     - -with-rtsopts=-N
+    - -fwarn-incomplete-patterns
     dependencies:
     - seedling
 
