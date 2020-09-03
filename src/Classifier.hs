@@ -70,11 +70,7 @@ type FeatureRow = (Feature, FeatureValue, Classification)
 -- (+++) = (DVU.++)
 
 --this can be improved to not repeat values
-featurize
-        :: UGraph String Double
-        -> [Chat]
-        -> [User]
-        -> [[FeatureRow]]
+featurize :: UGraph String Double -> [Chat] -> [User] -> [[FeatureRow]]
 featurize network chats users = DM.elems $ foldl build DM.empty chats
     where
         build featureMap Chat {..} =
@@ -162,20 +158,23 @@ classifyEdge (Edge _ _ v) | v >= 0.8  = Excellent
                           | v >= 0.0  = Bad
                           | otherwise = Terrible
 
---TODO: actually use the correct distribuitions instead of forcefully transforming the data
---summarize and scoreNormal assume that the data is sufficient (ie every classification is present and every features has more than one non zero row)
-summarize :: [[FeatureRow]] -> [(Classification, Count, [Summary])]
-summarize allFeatures =
+--TEST WITH THE IRIS PETAL DATABASE
+
+
+--MUST INCLUDE THE SUMMARY OF ALL FEATURES
+--IT ACTUALLY HAS TO USE THE CORRECT DISTRIBUTION
+summarize :: [[FeatureRow]] -> [(Classification, Count, [Maybe Summary])]
+summarize allFeatures = filter
+        tooSmall
         [ ( classification
-          , fromIntegral
-                  . length $ head filtered
+          , fromIntegral . length $ head filtered
           , fmap summit filtered
           )
         | classification <- [minBound ..]
-        , let
-                filtered = filterClass classification allFeatures
+        , let filtered = filterClass classification allFeatures
         ]
     where
+        tooSmall (_, count, _) = count > 1
         filterClass classification =
                 fmap (fmap extract . filter (sameClass classification))
         extract (feature, weight, _) = (feature, weight)
@@ -183,57 +182,59 @@ summarize allFeatures =
         sameClass classification (_, _, c) = c == classification
 
         summit features =
-                let
-                        count = fromIntegral $ length features
-                        --TODO: we prolly want to use vectors all around?
-                        values =
-                                DVU.toList
-                                        . DM.fromJust
-                                        . SSN.standardize
-                                        . DVU.fromList
-                                        $ fmap snd features
-                        mean = sum values / count
-                in
-                        Summary
-                                { feature           = fst $ head features
-                                --since we shaped the data to a normal distribuition the mean and deviation will not quite be 0 and 1
-                                , mean              = mean
-                                , standardDeviation =
-                                                sqrt
-                                                        ( sum
-                                                                        [ ( v
-                                                                          - mean
-                                                                          )
-                                                                                  ** 2.0
-                                                                        | v <-
-                                                                                values
-                                                                        ]
-                                                        / (count - 1)
-                                                        )
-                                }
+                --TODO: we prolly want to use vectors all around?
+                case Just $ fmap snd features of
+                        Nothing -> Nothing
+                        Just v ->
+                                let
+                                        values =  v
+                                        count  = fromIntegral $ length features
+                                        mean   = sum values / count
+                                in
+                                        --since we shaped the data to a normal distribuition the mean and deviation will not quite be 0 and 1
+                                        Just $ Summary
+                                                { feature = fst $ head features
+                                                , mean = mean
+                                                , standardDeviation =
+                                                        sqrt
+                                                                ( sum
+                                                                                [ (v
+                                                                                  - mean
+                                                                                  )
+                                                                                          ** 2.0
+                                                                                | v <-
+                                                                                        values
+                                                                                ]
+                                                                / ( count
+                                                                  - 1
+                                                                  )
+                                                                )
+                                                }
+
+--LOG AND SMOOTHING CAN BE ADDED AFTER MAKING SURE IT IS CORRECT
 
 scoreNormal
         :: Count
-        -> [(Classification, Count, [Summary])]
+        -> [(Classification, Count, [Maybe Summary])]
         -> [(Feature, FeatureValue)]
         -> [(Classification, Double)]
 scoreNormal totalCount summaries features = fmap foldScore summaries
     where
         foldScore (classification, count, summaries) =
                 ( classification
-                , foldl calculate (log (count / totalCount)) summaries + 1.0
+                , foldl calculate ((count / totalCount)) summaries
                 )
 
         featureMap = DM.fromList features
         -- log(x * y) = log(x) + log(y)
-        calculate total Summary {..} =
-                        total
-                                + log
-                                          (probabilityDensity
-                                                  mean
-                                                  standardDeviation
-                                                  (featureMap ! feature)
-                                          )
+        calculate total summary = total *
+                (case summary of
+                        Nothing           -> smoothing
+                        Just Summary {..} -> probabilityDensity
+                                mean
+                                standardDeviation
+                                (featureMap ! feature)
+                )
 
         probabilityDensity mean standardDeviation value =
                 (1.0 / (sqrt (2.0 * pi) * standardDeviation))
@@ -243,3 +244,36 @@ scoreNormal totalCount summaries features = fmap foldScore summaries
                                     /  (2.0 * standardDeviation ** 2.0)
                                     )
                                   )
+
+
+        smoothing = 1
+
+
+t = 10.0
+
+test1 =
+        [ [ (UserPositiveEdges, 3.393533211, Good)
+          , (UserPositiveEdges, 3.110073483, Good)
+          , (UserPositiveEdges, 1.343808831, Good)
+          , (UserPositiveEdges, 3.582294042, Good)
+          , (UserPositiveEdges, 2.280362439, Good)
+          , (UserPositiveEdges, 7.423436942, Bad)
+          , (UserPositiveEdges, 5.745051997, Bad)
+          , (UserPositiveEdges, 9.172168622, Bad)
+          , (UserPositiveEdges, 7.792783481, Bad)
+          , (UserPositiveEdges, 7.939820817, Bad)
+          ]
+        , [ (UserNegativeEdges, 2.331273381, Good)
+          , (UserNegativeEdges, 1.781539638, Good)
+          , (UserNegativeEdges, 3.368360954, Good)
+          , (UserNegativeEdges, 4.67917911 , Good)
+          , (UserNegativeEdges, 2.866990263, Good)
+          , (UserNegativeEdges, 4.696522875, Bad)
+          , (UserNegativeEdges, 3.533989803, Bad)
+          , (UserNegativeEdges, 2.511101045, Bad)
+          , (UserNegativeEdges, 3.424088941, Bad)
+          , (UserNegativeEdges, 0.791637231, Bad)
+          ]
+        ]
+
+f1 = [(UserPositiveEdges, 3.393533211), (UserNegativeEdges, 2.331273381)]

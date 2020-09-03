@@ -52,8 +52,8 @@ createSuggestions chats users for = sortValues createMap
                                                    comparedUserEdges
                                                    comparedUser
                         (classification, scoreNormal) =
-                                DL.maximumBy compareScore
-                                        $ trace ("scores" ++ show s) s
+                                DL.maximumBy compareScore s
+                                       -- $ trace ("scores " ++ show s) s
                         new = (name comparedUser, scoreNormal)
                 in
                         DM.insertWith (\_ old -> new : old)
@@ -69,6 +69,6 @@ createSuggestions chats users for = sortValues createMap
 
         chatsCount   = fromIntegral $ length chats
 
-        network      = N.createNetwork chats
+        network      =  N.createNetwork chats
         features     = C.featurize network chats users
-        summaries    = trace ("summaries " ++ show (C.summarize features))(C.summarize features)
+        summaries    = C.summarize features
