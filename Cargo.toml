@@ -1,0 +1,15 @@
+[package]
+name = "seedling"
+version = "0.0.1"
+authors = ["Eduardo Asafe <e@asafe.dev>"]
+edition = "2018"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rusty-machine = "0.5.4"
+petgraph = "0.5.1"
+fnv = "1.0.3"
+postgres = "0.17.5"
+rand = "0.7.3"
