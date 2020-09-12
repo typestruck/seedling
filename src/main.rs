@@ -1,3 +1,5 @@
+use postgres::{Error};
+
 mod types;
 mod database;
 
@@ -6,9 +8,15 @@ mod database;
 // users' positions in the same bin are randomly shuffled to create a few suggestion lists
 // these suggestion lists are sorted by score, online status before being handed to clients
 fn main() {
-    let mut client = database::connect();
-    let grades = database::create_grades(&mut client);
+    println!("Rebuilding...");
+    rebuild_suggestions().expect("Couldn't rebuild suggestions!");
+    println!("Successfully rebuilt suggestions");
+}
+
+fn rebuild_suggestions() -> Result<(), Error> {
+    let mut client = database::connect()?; //poor man's monad
+    let grades = database::create_grades(&mut client)?;
     let lists = database::create_suggestion_lists(&grades);
 
-    database::update_suggestion_lists(&mut client, lists).expect("Couldn't perform transaction!");
+    return database::update_suggestion_lists(&mut client, lists);
 }
