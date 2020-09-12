@@ -1,4 +1,4 @@
-use crate::types::Grade;
+    use crate::types::Grade;
 use postgres::{Client, Error, NoTls};
 
 pub fn connect() -> Result<Client, Error> {
@@ -14,7 +14,7 @@ pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
                 cast((raw_score + raw_score * backer_bonus) as integer) score,
                 is_new_user
         from    (with k as  (select id,
-                                    (select sum(amount) from karmaHistories where target = u.id) karma,
+                                    (select sum(amount) from karma_histories where target = u.id) karma,
                                     (select count(1) from histories where sender = u.id) chats_started,
                                     (select count(1) from histories where recipient = u.id) chats_accepted,
                                     (select count(1) from blocks where blocked = u.id) bad_chats,
@@ -78,7 +78,7 @@ pub fn update_suggestions(client: &mut Client, lists: String) -> Result<(), Erro
     let mut transaction = client.transaction()?;
 
     //the table is truncated since the suggestions are expired
-    transaction.execute("truncate table suggestions;", &[])?;
+    transaction.execute("truncate table suggestions restart identity cascade;", &[])?;
     transaction.execute(lists.as_str(), &[])?;
     return transaction.commit();
 }
