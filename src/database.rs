@@ -1,4 +1,4 @@
-    use crate::types::Grade;
+use crate::types::Grade;
 use postgres::{Client, Error, NoTls};
 
 pub fn connect() -> Result<Client, Error> {
@@ -6,7 +6,7 @@ pub fn connect() -> Result<Client, Error> {
 }
 
 pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
-    //the "score" of a user is just the sum of a few some metrics, some of which:
+    //the "score" of a user is just the sum of a few metrics
     // karma is (linearly) converted to the range 1..255 so it doesn't obscure the other metrics
     // for backers there is a slight score bonus
     let query = "
@@ -53,13 +53,13 @@ pub fn create_suggestions(grades: &mut [Grade]) -> String {
         "insert into suggestions (suggested, score) values".to_owned();
     let total = grades.len();
     let median = grades[total / 2].score;
-    //new users (e.g less than a week old) are artificially placed higher
+    //new users (e.g., less than a week old) are artificially placed higher
     for gr in grades.iter_mut() {
         if gr.is_new_user {
             gr.score = median
         }
     }
-    //sort the collection (since new users might have moded) to avoid order bys
+    //sort the collection (since [new] users might have been moved) to avoid order bys
     grades.sort_unstable_by(|s, s2| s2.score.cmp(&s.score));
 
     for (i, gr) in grades.iter().enumerate() {
@@ -77,7 +77,7 @@ pub fn create_suggestions(grades: &mut [Grade]) -> String {
 pub fn update_suggestions(client: &mut Client, lists: String) -> Result<(), Error> {
     let mut transaction = client.transaction()?;
 
-    //the table is truncated since the suggestions are expired
+    //the table is truncated since the suggestions have expired
     transaction.execute("truncate table suggestions restart identity cascade;", &[])?;
     transaction.execute(lists.as_str(), &[])?;
     return transaction.commit();
