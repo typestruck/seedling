@@ -21,7 +21,7 @@ pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
                                     0 time_spent_online,
                                     0 achievements,
                                     0 backer_bonus,
-                                    date_part('day', age(now() at time zone 'utc', joined)) < 8 is_new_user
+                                    trunc(date_part('day', now() at time zone 'utc' - joined) / 7) = 0 is_new_user
                             from users u
                             order by karma desc)
                 select id,
