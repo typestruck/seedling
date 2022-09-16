@@ -2,7 +2,7 @@ use crate::types::Grade;
 use postgres::{Client, Error, NoTls};
 
 pub fn connect() -> Result<Client, Error> {
-    return Client::connect("host=localhost user=melanchat dbname=melanchat", NoTls);
+    return Client::connect("host=localhost user=merochat dbname=merochat", NoTls);
 }
 
 pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
