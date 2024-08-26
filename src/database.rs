@@ -8,7 +8,7 @@ pub fn connect() -> Result<Client, Error> {
 pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
     //the "score" of a user is just the sum of a few metrics
     // karma is (linearly) converted to the range 1..255 so it doesn't obscure the other metrics
-    // for backers there is a slight score bonus
+    // for backers there is a score bonus
     let query = "
         select  id,
                 cast((raw_score + raw_score * backer_bonus) as integer) score,
@@ -19,8 +19,8 @@ pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
                                     (select count(1) from histories where recipient = u.id) chats_accepted,
                                     (select count(1) from blocks where blocked = u.id) bad_chats,
                                     0 time_spent_online,
-                                    0 achievements,
-                                    0 backer_bonus,
+                                    (select count(1) from badges_users where receiver = u.id) achievements,
+                                    (case when u.backer then 0.2 else 0 end) backer_bonus,
                                     trunc(date_part('day', now() at time zone 'utc' - joined) / 7) = 0 is_new_user
                             from users u
                             order by karma desc)
