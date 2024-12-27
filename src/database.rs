@@ -11,8 +11,7 @@ pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
     // for backers there is a score bonus
     let query = "
         select  id,
-                cast((raw_score + raw_score * backer_bonus) as integer) score,
-                is_new_user
+                cast((raw_score + raw_score * backer_bonus) as integer) score
         from    (with k as  (select id,
                                     (select sum(amount) from karma_histories where target = u.id) karma,
                                     (select count(1) from histories where sender = u.id) chats_started,
@@ -20,12 +19,10 @@ pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
                                     (select count(1) from blocks where blocked = u.id) bad_chats,
                                     0 time_spent_online,
                                     (select count(1) from badges_users where receiver = u.id) achievements,
-                                    (case when u.backer then 0.2 else 0 end) backer_bonus,
-                                    trunc(date_part('day', now() at time zone 'utc' - joined) / 3) = 0 is_new_user
+                                    (case when u.backer then 0.2 else 0 end) backer_bonus
                             from users u
                             order by karma desc)
                 select id,
-                       is_new_user,
                        ((greatest(karma, 0) * 255 / (select karma from k limit 1)) +
                                 chats_started +
                                 chats_accepted -
@@ -40,8 +37,7 @@ pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
     for row in client.query(query, &[])? {
         grades.push(Grade {
             id: row.get(0),
-            score: row.get(1),
-            is_new_user: row.get(2),
+            score: row.get(1)
         })
     }
 
@@ -52,13 +48,7 @@ pub fn create_suggestions(grades: &mut [Grade]) -> String {
     let mut query =
         "insert into suggestions (suggested, score) values".to_owned();
     let total = grades.len();
-    let median = grades[total / 2].score;
-    //new users (e.g., less than a three days older) are artificially placed higher
-    for gr in grades.iter_mut() {
-        if gr.is_new_user {
-            gr.score = median
-        }
-    }
+
     //sort the collection (since [new] users might have been moved) to avoid order bys
     grades.sort_unstable_by(|s, s2| s2.score.cmp(&s.score));
 
