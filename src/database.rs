@@ -8,7 +8,7 @@ pub fn connect() -> Result<Client, Error> {
 pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
     //the "score" of a user is just the sum of a few metrics
     // karma is (linearly) converted to the range 1..255 so it doesn't obscure the other metrics
-    // users are then put into bins top 2%, top 10%, top 20%, top 35%, top 55%, rest
+    // users are then put into bins top 2%, top 5%, top 10%, top 20%, top 35%, top 55%, rest
     let query = "
         select  id,
                 cast((raw_score + raw_score * backer_bonus) as integer) score
@@ -56,16 +56,18 @@ pub fn create_suggestions(grades: &mut [Grade]) -> String {
 
         if percent <= 2.0 {
             bin = 1;
-        } else if percent <= 10.0 {
+        } else if percent <= 5.0 {
             bin = 2;
-        } else if percent <= 20.0 {
+        } else if percent <= 10.0 {
             bin = 3;
-        } else if percent <= 35.0 {
+        } else if percent <= 20.0 {
             bin = 4;
-        } else if percent <= 55.0 {
+        } else if percent <= 35.0 {
             bin = 5;
-        } else {
+        } else if percent <= 55.0 {
             bin = 6;
+        } else {
+            bin = 7;
         }
 
         query.push_str(&format!(
