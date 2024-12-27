@@ -21,7 +21,7 @@ pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
                                     0 time_spent_online,
                                     (select count(1) from badges_users where receiver = u.id) achievements,
                                     (case when u.backer then 0.2 else 0 end) backer_bonus,
-                                    trunc(date_part('day', now() at time zone 'utc' - joined) / 7) = 0 is_new_user
+                                    trunc(date_part('day', now() at time zone 'utc' - joined) / 3) = 0 is_new_user
                             from users u
                             order by karma desc)
                 select id,
@@ -53,7 +53,7 @@ pub fn create_suggestions(grades: &mut [Grade]) -> String {
         "insert into suggestions (suggested, score) values".to_owned();
     let total = grades.len();
     let median = grades[total / 2].score;
-    //new users (e.g., less than a week old) are artificially placed higher
+    //new users (e.g., less than a three days older) are artificially placed higher
     for gr in grades.iter_mut() {
         if gr.is_new_user {
             gr.score = median
