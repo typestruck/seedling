@@ -17,18 +17,19 @@ pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
                                     (select count(1) from histories where sender = u.id) chats_started,
                                     (select count(1) from histories where recipient = u.id) chats_accepted,
                                     (select count(1) from blocks where blocked = u.id) bad_chats,
-                                    0 time_spent_online,
                                     (select count(1) from badges_users where receiver = u.id) achievements,
-                                    (case when u.backer then 0.2 else 0 end) backer_bonus
+                                    (case when u.backer then 0.2 else 0 end) backer_bonus,
+                                    ((select count(1) from complete_profiles where completer = u.id) * 2) fullness
                             from users u
+                            where not temporary
                             order by karma desc)
                 select id,
                        ((greatest(karma, 0) * 255 / (select karma from k limit 1)) +
                                 chats_started +
                                 chats_accepted -
                                 bad_chats +
-                                time_spent_online +
-                                achievements) raw_score,
+                                achievements +
+                                fullness) raw_score,
                         backer_bonus
                 from k) t
         order by score desc;";
