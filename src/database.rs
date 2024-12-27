@@ -8,7 +8,7 @@ pub fn connect() -> Result<Client, Error> {
 pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
     //the "score" of a user is just the sum of a few metrics
     // karma is (linearly) converted to the range 1..255 so it doesn't obscure the other metrics
-    // for backers there is a score bonus
+    // users are then put into bins top 2%, top 20%, top 50%, rest
     let query = "
         select  id,
                 cast((raw_score + raw_score * backer_bonus) as integer) score
@@ -47,18 +47,29 @@ pub fn create_grades(client: &mut Client) -> Result<Vec<Grade>, Error> {
 
 pub fn create_suggestions(grades: &mut [Grade]) -> String {
     let mut query =
-        "insert into suggestions (suggested, score) values".to_owned();
+        "insert into suggestions (suggested, score, bin) values".to_owned();
     let total = grades.len();
 
-    //sort the collection (since [new] users might have been moved) to avoid order bys
     grades.sort_unstable_by(|s, s2| s2.score.cmp(&s.score));
 
     for (i, gr) in grades.iter().enumerate() {
         let token = if i == total - 1 { ";" } else { "," };
+        let percent = (i as f64 / total as f64) * 100.0;
+        let bin;
+
+        if percent <= 2.0 {
+            bin = 1;
+        } else if percent <= 20.0 {
+            bin = 2;
+        } else if percent <= 50.0 {
+            bin = 3;
+        } else {
+            bin = 4;
+        }
 
         query.push_str(&format!(
-            "({},{}){}",
-            gr.id, gr.score, token
+            "({},{},{}){}",
+            gr.id, gr.score, bin, token
         ));
     }
 
